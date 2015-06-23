@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Rádio AP-306</string>
+    <string name="notificationMessage">Você está ouvindo, Rádio AP-306</string>
+    <string name="notificationMessagePause">Click aqui e volte a ouvir, Rádio AP-306</string>
+    <string name="volume">Volume: </string>
+    <string name="action_settings">Settings</string>
+</resources>
