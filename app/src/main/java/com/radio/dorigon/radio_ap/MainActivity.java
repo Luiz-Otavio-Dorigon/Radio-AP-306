@@ -8,6 +8,7 @@ import android.app.PendingIntent;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -18,10 +19,11 @@ import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends Activity implements
         MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener,
-        MediaPlayer.OnErrorListener, MediaPlayer.OnBufferingUpdateListener {
+        MediaPlayer.OnErrorListener, MediaPlayer.OnBufferingUpdateListener{
 
     private static final int HELLO_ID = 1;
     private static final String NS = Context.NOTIFICATION_SERVICE;
@@ -42,13 +44,21 @@ public class MainActivity extends Activity implements
         super.onCreate(savedInstanceState);
 
         startVariables();
+        if (!isPlay)
+            play();
+        if (isVisible)
+            progressBar.setVisibility(View.VISIBLE);
+        else
+            progressBar.setVisibility(View.INVISIBLE);
 
         seekbar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
             @Override
-            public void onStopTrackingTouch(SeekBar arg) {}
+            public void onStopTrackingTouch(SeekBar arg) {
+            }
 
             @Override
-            public void onStartTrackingTouch(SeekBar arg) {}
+            public void onStartTrackingTouch(SeekBar arg) {
+            }
 
             @Override
             public void onProgressChanged(SeekBar arg, int progress, boolean arg1) {
@@ -67,13 +77,6 @@ public class MainActivity extends Activity implements
                 }
             }
         });
-        if (!isPlay)
-            play();
-
-        if (isVisible)
-            progressBar.setVisibility(View.VISIBLE);
-        else
-            progressBar.setVisibility(View.INVISIBLE);
     }
 
     @Override
@@ -86,6 +89,11 @@ public class MainActivity extends Activity implements
     public void finish() {
         mNotificationManager.cancelAll();
         super.finish();
+    }
+
+    public boolean isOnline() {
+        ConnectivityManager manager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        return manager.getActiveNetworkInfo() != null && manager.getActiveNetworkInfo().isConnectedOrConnecting();
     }
 
     public void onPrepared(MediaPlayer mp) {
@@ -152,6 +160,8 @@ public class MainActivity extends Activity implements
                 break;
             case MediaPlayer.MEDIA_ERROR_UNKNOWN:
                 sb.append("Unknown");
+                stop();
+                Toast.makeText(this, R.string.connectServerError, Toast.LENGTH_LONG).show();
                 break;
             default:
                 sb.append(" Non standard (");
@@ -169,23 +179,27 @@ public class MainActivity extends Activity implements
     }
 
     private void play() {
-        progressBar.setVisibility(View.VISIBLE);
-        Uri myUri = Uri.parse("http://108.163.197.114:8340/");
         try {
             if (mp != null) {
                 mp.stop();
                 mp.reset();
             }
-            mp.setDataSource(this, myUri);
-            mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
-            mp.setOnPreparedListener(this);
-            mp.setOnBufferingUpdateListener(this);
-            mp.setOnErrorListener(this);
-            mp.prepareAsync();
-            startNotification();
-            isPlay = true;
-            isVisible = true;
-            btnPlayStop.setBackgroundResource(R.drawable.img_stop);
+            if (isOnline()) {
+                progressBar.setVisibility(View.VISIBLE);
+                mp.setDataSource(this, Uri.parse("http://108.163.197.114:8340/"));
+                mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                mp.setOnPreparedListener(this);
+                mp.setOnBufferingUpdateListener(this);
+                mp.setOnErrorListener(this);
+                mp.prepareAsync();
+                startNotification();
+                isPlay = true;
+                isVisible = true;
+                btnPlayStop.setBackgroundResource(R.drawable.img_stop);
+            } else {
+                stop();
+                Toast.makeText(this, R.string.connectionError, Toast.LENGTH_LONG).show();
+            }
             Log.d(TAG, "LoadClip Done");
         } catch (Throwable t) {
             Log.d(TAG, t.toString());
