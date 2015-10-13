@@ -6,11 +6,14 @@ import android.app.Activity;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.graphics.PorterDuff;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
@@ -26,12 +29,10 @@ public class MainActivity extends Activity implements
         MediaPlayer.OnErrorListener, MediaPlayer.OnBufferingUpdateListener{
 
     private static final int HELLO_ID = 1;
-    private static final String NS = Context.NOTIFICATION_SERVICE;
 
     private String TAG = getClass().getSimpleName();
     private boolean isPlay, isVisible;
 
-    private NotificationManager mNotificationManager;
     private MediaPlayer mp = new MediaPlayer();
     private AudioManager audioManager;
     private SeekBar seekbar;
@@ -49,7 +50,7 @@ public class MainActivity extends Activity implements
         if (isVisible)
             progressBar.setVisibility(View.VISIBLE);
         else
-            progressBar.setVisibility(View.INVISIBLE);
+            progressBar.setVisibility(View.GONE);
 
         seekbar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
             @Override
@@ -81,13 +82,13 @@ public class MainActivity extends Activity implements
 
     @Override
     protected void onDestroy() {
-        mNotificationManager.cancelAll();
+        ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).cancel(HELLO_ID);
         super.onDestroy();
     }
 
     @Override
     public void finish() {
-        mNotificationManager.cancelAll();
+        ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).cancel(HELLO_ID);
         super.finish();
     }
 
@@ -100,7 +101,7 @@ public class MainActivity extends Activity implements
         Log.d(TAG, "Stream is prepared");
         mp.start();
         isVisible = false;
-        progressBar.setVisibility(View.INVISIBLE);
+        progressBar.setVisibility(View.GONE);
     }
 
     public void onCompletion(MediaPlayer mp) {
@@ -134,6 +135,7 @@ public class MainActivity extends Activity implements
         seekbar = (SeekBar) this.findViewById(R.id.seekBar);
         btnPlayStop = (Button) this.findViewById(R.id.btn_play_stop);
         progressBar = (ProgressBar) this.findViewById(R.id.progressBar);
+        progressBar.getIndeterminateDrawable().setColorFilter(getResources().getColor(R.color.blue), PorterDuff.Mode.SRC_IN);
         txtVolume = (TextView) this.findViewById(R.id.txtVolume);
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         seekbar.setMax(audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
@@ -179,6 +181,7 @@ public class MainActivity extends Activity implements
     }
 
     private void play() {
+        notification(getString(R.string.notificationMessage));
         try {
             if (mp != null) {
                 mp.stop();
@@ -186,13 +189,12 @@ public class MainActivity extends Activity implements
             }
             if (isOnline()) {
                 progressBar.setVisibility(View.VISIBLE);
-                mp.setDataSource(this, Uri.parse("http://108.163.197.114:8340/"));
+                mp.setDataSource(this, Uri.parse("http://dlsolucoesweb.ddns.net:1880/"));
                 mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
                 mp.setOnPreparedListener(this);
                 mp.setOnBufferingUpdateListener(this);
                 mp.setOnErrorListener(this);
                 mp.prepareAsync();
-                startNotification();
                 isPlay = true;
                 isVisible = true;
                 btnPlayStop.setBackgroundResource(R.drawable.img_stop);
@@ -207,43 +209,35 @@ public class MainActivity extends Activity implements
     }
 
     private void stop() {
-        pauseNotification();
+        notification(getString(R.string.notificationMessagePause));
         mp.reset();
         mp.stop();
-        progressBar.setVisibility(View.INVISIBLE);
+        progressBar.setVisibility(View.GONE);
         isPlay = false;
         isVisible = false;
         btnPlayStop.setBackgroundResource(R.drawable.img_play);
     }
 
-    private void startNotification() {
-        int icon = R.mipmap.ic_launcher;
-        long when = System.currentTimeMillis();
-        String message = getString(R.string.notificationMessage);
-        mNotificationManager = (NotificationManager) this.getSystemService(NS);
-        Notification notification = new Notification(icon, message, when);
-        String title = this.getString(R.string.app_name);
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent intent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_CANCEL_CURRENT);
-        notification.setLatestEventInfo(this, title, message, intent);
-        notification.flags = Notification.FLAG_NO_CLEAR;
-        mNotificationManager.notify(HELLO_ID, notification);
-    }
+    private void notification(String message) {
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.cancelAll();
 
-    private void pauseNotification() {
-        int icon = R.mipmap.ic_launcher;
-        long when = System.currentTimeMillis();
-        String message = getString(R.string.notificationMessagePause);
-        mNotificationManager = (NotificationManager) this.getSystemService(NS);
-        Notification notification = new Notification(icon, message, when);
-        String title = this.getString(R.string.app_name);
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent intent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_CANCEL_CURRENT);
-        notification.setLatestEventInfo(this, title, message, intent);
-        notification.flags = Notification.FLAG_NO_CLEAR;
-        mNotificationManager.notify(HELLO_ID, notification);
-    }
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(message)
+                .setOngoing(true);
 
+        Intent resultIntent = new Intent(this, MainActivity.class);
+
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+
+        stackBuilder.addParentStack(MainActivity.class);
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        mBuilder.setContentIntent(resultPendingIntent);
+        mNotificationManager.notify(HELLO_ID, mBuilder.build());
+
+    }
 }

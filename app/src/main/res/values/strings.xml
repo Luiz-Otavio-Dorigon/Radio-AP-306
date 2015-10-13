@@ -6,4 +6,9 @@
     <string name="connectServerError">Erro ao tentar conectar-se ao servidor.</string>
     <string name="connectionError">Você não está conectado a internet.</string>
     <string name="action_settings">Settings</string>
+
+    <color name="seekbar">#4285F4</color>
+    <color name="seekbarfree">#7BAAF7</color>
+    <color name="blue">#1976D2</color>
+
 </resources>
